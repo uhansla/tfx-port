@@ -19,6 +19,19 @@ This is an unofficial fan project. It is not affiliated with or endorsed by the 
 - **Head tracking** with FreeTrack / opentrack in the virtual cockpit: look up to 160° to each side and 80° up and down, around a full 3D cockpit and airframe.
 - **A one-click build** (`build.bat`). It checks your copy of the game before it downloads anything, and fetches pinned, checksummed tools into the repository folder without installing anything on the PC.
 
+## Screenshots
+
+<img alt="The cockpit in a 16:9 window: the world fills the screen, and the cockpit and HUD stay 4:3 in the middle" src="https://github.com/user-attachments/assets/20173505-7796-449a-9abc-5c2d803e2a99" />
+
+*The cockpit in a 16:9 window, drawn by the Direct3D 12 renderer.*
+
+| | |
+|---|---|
+| <img alt="An outside view of the F-22 over the desert" src="https://github.com/user-attachments/assets/5c78ad41-e09a-46f4-8f3f-f13f83f6cd1f" /> | <img alt="The 3D virtual cockpit, looking left" src="https://github.com/user-attachments/assets/478a0eb4-5c2a-4871-934a-0d71af34114f" /> |
+| *An outside view* | *The virtual cockpit (F10)* |
+| <img alt="Head tracking: looking back over the wing" src="https://github.com/user-attachments/assets/7e4334f5-9c3c-49a8-9854-2526d844cbac" /> | <img alt="The controls window binding a HOTAS" src="https://github.com/user-attachments/assets/f4bf94a6-f068-4b85-85b2-b75f6874adb9" /> |
+| *Head tracking: looking back over the wing* | *The controls window* |
+
 ## What you need
 
 - **Your own copy of TFX**: the CD-ROM release, installed and patched to v2.01 (`TFX.DAT` is 1,032,503 bytes), with its CD image:
