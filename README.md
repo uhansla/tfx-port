@@ -2,6 +2,8 @@
 
 A native Windows port of **TFX** (Digital Image Design / Ocean, 1993). The game's own DOS program is translated to C ahead of time ("static recompilation") and runs on a small runtime that provides what DOS/4GW, VGA, the BIOS and the CD-ROM driver used to. There is no emulator: the game's code runs directly as a Windows program. Original assets and branding are untouched and are read from your own copy of the game.
 
+**Built by Claude.** The recompiler, the runtime, the renderer, the build tools and the documentation were written by Claude, Anthropic's AI model, working in Claude Code. [uhansla](https://github.com/uhansla) directed the project, played and tested it on real hardware (joysticks, HOTAS and head tracking included), and reported what needed fixing. The porting notes ([PORTING_PLAN.md](PORTING_PLAN.md), [DEBUG_LOG.md](DEBUG_LOG.md)) record how the work was done.
+
 This is an unofficial fan project. It is not affiliated with or endorsed by the game's developers, publishers or current rights holders. **The repository contains no part of the game**: no data, no art, no music, and none of its code. You build the executable yourself from your own copy.
 
 ## Features
