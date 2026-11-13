@@ -4,6 +4,21 @@ A native Windows port of **TFX** (Digital Image Design / Ocean, 1993). The game'
 
 This is an unofficial fan project. It is not affiliated with or endorsed by the game's developers, publishers or current rights holders. **The repository contains no part of the game**: no data, no art, no music, and none of its code. You build the executable yourself from your own copy.
 
+## Features
+
+- **A native 64-bit Windows program.** No DOSBox, no emulator and no DOS extender: the game's code runs as compiled C. The setup program (`tfxconfig.exe`) is ported the same way.
+- **No CD drive needed.** The game reads its data and plays its CD soundtrack straight from the CD image. Saved pilots stay in the game folder as before.
+- **Sound as in 1993.** Sound effects play through an emulated Sound Blaster 16. Music plays on AdLib FM, or on a Roland MT-32 / SCC-1 (or an emulator of one) through Windows MIDI.
+- **A Direct3D 12 renderer** draws the 3D world on the GPU at full window resolution. The HUD is redrawn as smooth lines; clouds and missile smoke are see-through; night lights and distant aircraft are round dots. The original's cockpit art is kept.
+- **Widescreen at any aspect ratio** (tested from 16:10 to 32:9): the world fills the screen, and the cockpit and HUD stay 4:3 in the middle.
+- **Double the frame rate.** 54.6 fps instead of the original's 27, with the game's timing unchanged. With DLSS Frame Generation it reaches 109 fps.
+- **Anti-aliasing and upscaling:** the port's own temporal upscaler, AMD FSR 3.1 / FSR 4, NVIDIA DLSS and DLAA, and DLSS Frame Generation (2x to 4x).
+- **A sharper cockpit:** pixel-art filters (MMPX, xBR) for the cockpit, MFDs and panel text. An optional AI-upscaled cockpit art pack can be made from your own copy of the game.
+- **Display options:** windowed or borderless fullscreen (Alt+Enter), any window size, 4:3 or stretched aspect, and sharp, whole-pixel or smooth scaling.
+- **Joysticks, HOTAS and game controllers** work as soon as they're plugged in, and several devices can be used at once. A controls window binds any button or hat direction to any game key, and there is a ready-made layout for the Thrustmaster Warthog.
+- **Head tracking** with FreeTrack / opentrack in the virtual cockpit: look up to 160° to each side and 80° up and down, around a full 3D cockpit and airframe.
+- **A one-click build** (`build.bat`). It checks your copy of the game before it downloads anything, and fetches pinned, checksummed tools into the repository folder without installing anything on the PC.
+
 ## What you need
 
 - **Your own copy of TFX**: the CD-ROM release, installed and patched to v2.01 (`TFX.DAT` is 1,032,503 bytes), with its CD image:
