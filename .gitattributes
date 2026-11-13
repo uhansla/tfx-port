@@ -1,0 +1,8 @@
+# Windows scripts need CRLF, shell scripts LF, whatever the cloning PC is set to
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+*.c   text
+*.h   text
+*.md  text

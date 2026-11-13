@@ -1,0 +1,15 @@
+# TFX.DAT: code bytes the port itself patches (link addresses, original value).
+# Kept by hand; tools/recomp.py makes the instructions holding them run with live bytes.
+# 0x41B9B9 (link 0x2B9B9): frame limiter `cmp dx, 2` minimum ticks (tfx.ini framerate=high -> 1)
+0002b9b9 02
+# Span routines that return through a jmp whose rel32 they patch on entry
+# (pop esi; sub esi, here+4; mov [here], esi): 4726CA 4728AE 472A31 472D83
+# 473D88 474239 474BA4.  Not all were seen while collecting TFX.DAT.txt; the
+# dithered disc fill 0x47292F crashed (jmp 0) when first used.  See DEBUG_LOG.
+000826ca 00000000
+000828ae 00000000
+00082a31 00000000
+00082d83 00000000
+00083d88 00000000
+00084239 00000000
+00084ba4 00000000

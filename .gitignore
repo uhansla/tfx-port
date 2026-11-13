@@ -1,0 +1,12 @@
+# original game data and anything derived from it stays local
+*.zip
+_extract/
+build/
+work/
+toolchain/
+*.img
+*.bin
+dist/
+__pycache__/
+*.pyc
+.claude/
