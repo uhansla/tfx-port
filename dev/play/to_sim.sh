@@ -22,7 +22,8 @@ L=build/tfx/runtime.log
 for i in $(seq 1 90); do grep -q "d3d12: presenter\|presenter: " $L 2>/dev/null && break; sleep 0.5; done
 sleep 6;  d k 01            # credits
 sleep 3;  d k 01            # rooms
-sleep 5;  click 160 102     # LOAD PREVIOUS GAME
+sleep 5;  d r -2000 -2000 0; sleep 0.4   # the pointer to the corner (a real mouse over the window moves it)
+          click 160 102     # LOAD PREVIOUS GAME
 sleep 4;  click -40 -55     # pilot in slot 1
 sleep 1;  d k 1c
 sleep 5;  click 25 43       # SIMULATOR
