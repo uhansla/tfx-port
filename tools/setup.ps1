@@ -1,17 +1,19 @@
 # One-click build (started by build.bat): fetches the build tools into
 # toolchain\, asks for your game folder, builds tfx.exe and tfxconfig.exe from
-# your own TFX.DAT / CONFIG.EXE, and offers to copy them into the game folder.
+# your own TFX.DAT / CONFIG.EXE, offers to copy them into the game folder and
+# then to choose the port's settings (tfx.ini), each with what it does.
 #
 #   build.bat                      ask for everything
 #   build.bat -Game "D:\Games\TFX" the installed game (the folder with TFX.DAT)
 #   build.bat -Upscalers           also fetch AMD FidelityFX and NVIDIA Streamline
 #   build.bat -NoUpscalers         don't ask about them
 #   build.bat -Install / -NoInstall   copy the result into the game folder, or don't ask
+#   build.bat -Settings / -NoSettings  choose the port's settings (tfx.ini), or don't ask
 #
 # Nothing is installed on the PC: everything goes into this folder's
 # toolchain\ (about 1 GB, 2 GB with the upscaler SDKs) and build\.  Every
 # download is a fixed version whose SHA-256 is checked below.
-param([string]$Game = '', [switch]$Upscalers, [switch]$NoUpscalers, [switch]$Install, [switch]$NoInstall, [switch]$NoPause)
+param([string]$Game = '', [switch]$Upscalers, [switch]$NoUpscalers, [switch]$Install, [switch]$NoInstall, [switch]$Settings, [switch]$NoSettings, [switch]$NoPause)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -241,8 +243,24 @@ if (-not $NoInstall) {
     }
     if ($Install) {
         Copy-Item (Join-Path $dist '*') $g -Force
-        Write-Host "Copied. Start the game with $g\tfx.exe ; settings are in tfx.ini beside it (written at the first start)." -ForegroundColor Green
+        Write-Host "Copied. Start the game with $g\tfx.exe ; the port's settings are in tfx.ini beside it." -ForegroundColor Green
     }
 }
-if (-not $Install) { Write-Host "The result is in $dist ; copy its contents into your game folder." -ForegroundColor Green }
+if (-not $Install) { Write-Host "The result is in $dist ; copy its contents into your game folder. controls.bat there sets the port's options." -ForegroundColor Green }
+
+# ---- 6. the port's settings: tfx.ini beside tfx.exe in the game folder ----------
+# tools\inisetup.py asks option by option, with what each choice does; Enter keeps
+# what is set.  It writes only the lines you change (controls.bat does the same).
+if ($Install -and -not $NoSettings) {
+    if (-not $Settings) {
+        Write-Host ''
+        $a = Read-Host 'Choose the port''s settings now (window, fullscreen, renderer, upscaler ...), each explained? [Y/n]'
+        if ($a -notmatch '^[nN]') { $Settings = $true }
+    }
+    if ($Settings) {
+        Write-Host ''
+        & $py (Join-Path $Root 'tools\inisetup.py') $g
+        if ($LASTEXITCODE -ne 0) { Write-Host 'The settings were not changed; controls.bat (Settings page) sets them later.' -ForegroundColor Yellow }
+    } else { Write-Host "controls.bat in $g sets them later (Settings page)." }
+}
 Finish 0

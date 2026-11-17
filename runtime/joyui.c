@@ -176,6 +176,9 @@ struct option {
     int need;                        /* 0 always, 1 renderer=native, 2 and widescreen on, 3 and an upscaler */
     struct choice ch[6];
 };
+/* tools/inisetup.py (build.bat's settings questions) reads this table and
+ * opt_group[] below: keep each option's {"key", "label", "def", need, { on
+ * the line of its first choice, and every choice as {"label", "value", "desc"} */
 static const struct option opts[] = {
     {"window", "Window size", "1280x960", 0, {
         {"1280x960", "1280x960", "The window's size when not fullscreen (4:3). Other sizes can be written in tfx.ini, e.g. window=1500x1000."},

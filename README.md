@@ -58,11 +58,12 @@ The script then:
 - fetches the build tools into the repository's `toolchain\` folder. Nothing is installed on the PC. Each download is a fixed version with its SHA-256 checked: the LLVM-MinGW compiler (182 MB), SDL 2.30.9 (8 MB), a private Python 3.12 (11 MB) and the capstone disassembler (2 MB);
 - asks whether to also fetch AMD's FidelityFX SDK and NVIDIA's Streamline SDK (about 480 MB, under their own licences), which add FSR, DLSS and DLSS Frame Generation. Without them the game uses the port's own upscaler;
 - translates your `TFX.DAT` and `CONFIG.EXE` to C and compiles them with the runtime: 5 to 10 minutes the first time;
-- offers to copy the result (`tfx.exe`, `tfxconfig.exe`, `controls.bat` and the upscaler DLLs, if any) into your game folder. Nothing there is changed or removed.
+- offers to copy the result (`tfx.exe`, `tfxconfig.exe`, `controls.bat` and the upscaler DLLs, if any) into your game folder. Nothing there is changed or removed;
+- then offers to set the port's options in `tfx.ini` there, one question per option: each choice is listed with what it does, and Enter keeps what is set. It warns, for example, when FSR or DLSS is chosen without the AMD or NVIDIA DLLs. Only the lines you change are rewritten. `controls.bat` (Settings page) sets the same options later, and `python tools\inisetup.py <game folder>` asks the questions again.
 
 Things to know:
 - **Antivirus.** A script that downloads a compiler and produces a new, unsigned program is what security software distrusts. It may ask for confirmation, slow the build down or, on a managed PC, block it.
-- **`build.bat` options:** `-Game "D:\Games\TFX"`, `-Upscalers` / `-NoUpscalers`, `-Install` / `-NoInstall`. See the head of `tools\setup.ps1`.
+- **`build.bat` options:** `-Game "D:\Games\TFX"`, `-Upscalers` / `-NoUpscalers`, `-Install` / `-NoInstall`, `-Settings` / `-NoSettings`. See the head of `tools\setup.ps1`.
 - **By hand:** with the tools in `toolchain\` and a Python that has `capstone`, run `python tools\build.py --game "<game folder>"`; `--help` lists the rest.
 - **Don't share the built `tfx.exe`.** It contains code translated from your copy of the game.
 
