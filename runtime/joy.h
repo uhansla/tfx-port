@@ -23,6 +23,6 @@ int joy_ctl_down(int d, int c);
 int joy_bind_code(const char *s);           /* a binding's value: 0 none, -1 not understood */
 void joy_role_get(int k, int *dev, int *axis);      /* k: 0 x, 1 y, 2 rudder, 3 throttle; axis 1-based, 0 none, <0 reversed */
 
-int joy_controls_window(const char *dir);   /* joyui.c: the window; dir holds tfx.ini */
+int joy_controls_window(const char *dir, int settings_page);   /* joyui.c: the window; dir holds tfx.ini */
 
 #endif

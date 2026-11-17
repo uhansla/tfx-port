@@ -232,9 +232,9 @@ def build(name, game, a, tc):
             break
         time.sleep(1)
     if name == 'tfx':
-        # the controls window (tfx.exe --controls) as a double-click
-        lines = ['@echo off', 'rem TFX controls: bind joystick, throttle and controller buttons and axes',
-                 'rem (writes the joy... lines of tfx.ini next to tfx.exe).', 'cd /d "%~dp0"', 'start "" tfx.exe --controls', '']
+        # the controls and settings window (tfx.exe --controls) as a double-click
+        lines = ['@echo off', 'rem TFX controls: bind joystick, throttle and controller buttons and axes,',
+                 "rem and set the port's options (Settings page); both are saved in tfx.ini next to tfx.exe.", 'cd /d "%~dp0"', 'start "" tfx.exe --controls', '']
         with open(os.path.join(dist, 'controls.bat'), 'wb') as f:
             f.write('\r\n'.join(lines).encode('ascii'))
         copies = []

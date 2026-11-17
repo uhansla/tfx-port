@@ -16,7 +16,8 @@ struct port_settings settings = {
 
 static const char *default_ini =
     "; TFX port settings (this file is read at start-up; the game's own\n"
-    "; options are in TFX.CFG, set with CONFIG.EXE / tfxconfig.exe)\n"
+    "; options are in TFX.CFG, set with CONFIG.EXE / tfxconfig.exe).\n"
+    "; tfx.exe --settings (controls.bat, Settings page) sets them with a click\n"
     "\n"
     "; window size when not fullscreen\n"
     "window=1280x960\n"

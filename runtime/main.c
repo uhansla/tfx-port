@@ -202,7 +202,10 @@ int main(int argc, char **argv) {
     rt_logfile = fopen(path, "w");
     { extern void settings_load(const char *dir); settings_load(dir); }
     for (int i = 1; i < argc; i++)          /* the controls window instead of the game (joyui.c) */
-        if (!strcmp(argv[i], "--controls")) { extern int joy_controls_window(const char *dir); return joy_controls_window(dir); }
+        if (!strcmp(argv[i], "--controls") || !strcmp(argv[i], "--settings")) {
+            extern int joy_controls_window(const char *dir, int settings_page);
+            return joy_controls_window(dir, !strcmp(argv[i], "--settings"));
+        }
     AddVectoredExceptionHandler(1, crash_handler);
     timeBeginPeriod(1);              /* 1 ms sleeps for the busy-wait relief */
     atexit(final_exit);

@@ -1,9 +1,14 @@
-/* The controls window: tfx.exe --controls (controls.bat).
+/* The controls and settings window: tfx.exe --controls (controls.bat), or
+ * --settings to open it on the Settings page.
  *
- * Lists the game's controls from the manual; click one and press a button or
- * a hat direction on any connected device to bind it.  The axes (roll, pitch,
- * throttle, rudder) are set by moving them.  Save writes the joy... lines of
- * tfx.ini (joy.c reads them); everything else in the file is kept.
+ * Controls: lists the game's controls from the manual; click one and press a
+ * button or a hat direction on any connected device to bind it.  The axes
+ * (roll, pitch, throttle, rudder) are set by moving them.
+ * Settings: the other options of tfx.ini (window, picture, renderer,
+ * upscaler, joystick, head tracking), each with its choices to click.
+ * Save writes what changed: the joy... lines of tfx.ini (joy.c reads them)
+ * when a control changed, and the changed settings' lines in place; the
+ * rest of the file, comments included, is kept.
  *
  * An SDL window for the input (the same device list and numbers as in the
  * game), drawn with GDI for its fonts.
@@ -14,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <math.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -163,6 +169,215 @@ static void ctl_text(int d, int c, char *b, int n) {
     snprintf(b, n, "D%d %s", d + 1, l);
 }
 
+/* ---- the settings page: the other options of tfx.ini ------------------------ */
+struct choice { const char *label, *value, *desc; };
+struct option {
+    const char *key, *label, *def;   /* def: what the game uses without the line (settings.c) */
+    int need;                        /* 0 always, 1 renderer=native, 2 and widescreen on, 3 and an upscaler */
+    struct choice ch[6];
+};
+static const struct option opts[] = {
+    {"window", "Window size", "1280x960", 0, {
+        {"1280x960", "1280x960", "The window's size when not fullscreen (4:3). Other sizes can be written in tfx.ini, e.g. window=1500x1000."},
+        {"1600x1200", "1600x1200", "The window's size when not fullscreen (4:3)."},
+        {"1920x1080", "1920x1080", "The window's size when not fullscreen (16:9: widescreen with the native renderer)."},
+        {"2560x1440", "2560x1440", "The window's size when not fullscreen (16:9: widescreen with the native renderer)."}}},
+    {"fullscreen", "Fullscreen", "0", 0, {
+        {"Off", "0", "Start in a window. Alt+Enter switches to fullscreen and back at any time."},
+        {"On", "1", "Start fullscreen at the desktop's resolution (borderless). Alt+Enter switches at any time."}}},
+    {"aspect", "Picture shape", "4:3", 0, {
+        {"4:3", "4:3", "As on a 1993 monitor: the game's 320x200 pixels are taller than wide (recommended)."},
+        {"Square", "square", "Square pixels (16:10): slightly squashed."},
+        {"Fill", "fill", "Stretch the picture to the whole window or screen."}}},
+    {"scaling", "Scaling", "sharp", 0, {
+        {"Sharp", "sharp", "Crisp pixels without uneven sizes (recommended)."},
+        {"Pixel", "pixel", "Whole-number scaling only: every pixel the same size, but it may leave borders."},
+        {"Smooth", "smooth", "Soft bilinear filtering."}}},
+    {"framerate", "Frame rate", "high", 0, {
+        {"High", "high", "54.6 fps, a frame every tick of the game clock. Flight speed and the game's timers stay correct."},
+        {"Normal", "normal", "The original's 27 fps."}}},
+    {"presenter", "Presenter", "d3d12", 0, {
+        {"Direct3D 12", "d3d12", "Shows the picture with Direct3D 12, or with SDL on a PC without a DirectX 12 GPU."},
+        {"SDL", "sdl", "SDL's own renderer. The native renderer needs Direct3D 12."}}},
+    {"joystick", "Joysticks", "auto", 0, {
+        {"Auto", "auto", "A connected joystick or controller flies the aircraft; the keyboard again when it is unplugged."},
+        {"Off", "off", "Keyboard and mouse only: joysticks and controllers are ignored."}}},
+    {"head_tracking", "Head tracking", "auto", 0, {
+        {"Auto", "auto", "In the virtual cockpit (F10) the view follows a FreeTrack head tracker (opentrack) while one runs."},
+        {"Off", "off", "Never use a head tracker."}}},
+    {"joy_deadzone", "Dead zone", "", 0, {
+        {"Default", "", "How much of the stick's travel around the centre is ignored: 10% for a controller, 4% for a joystick."},
+        {"2%", "2", "2% of the stick's travel around the centre is ignored."},
+        {"4%", "4", "4% of the stick's travel around the centre is ignored."},
+        {"8%", "8", "8% of the stick's travel around the centre is ignored."},
+        {"12%", "12", "12% of the stick's travel around the centre is ignored."},
+        {"16%", "16", "16% of the stick's travel around the centre is ignored."}}},
+    {"renderer", "Renderer", "game", 0, {
+        {"Game", "game", "The original 320x200 picture, scaled up."},
+        {"Native", "native", "The 3D world drawn by the GPU at full resolution, with the cockpit and HUD from the original. Needs Direct3D 12."}}},
+    {"widescreen", "Widescreen", "on", 1, {
+        {"On", "on", "In a window wider than 4:3 the 3D world fills the whole width; the cockpit and HUD stay 4:3 in the middle."},
+        {"Off", "off", "The 3D views stay 4:3, with bars at the sides of a wider window."}}},
+    {"widescreen_sides", "Sides", "world", 2, {
+        {"World", "world", "The sides show the 3D world, also next to the cockpit panel."},
+        {"Cockpit", "cockpit", "The cockpit panel and the status bar continue sideways."}}},
+    {"ui_filter", "Cockpit filter", "off", 1, {
+        {"Off", "off", "The cockpit, MFDs and other game pixels are scaled as set by Scaling."},
+        {"MMPX", "mmpx", "Pixel-art upscaling (4x): smooth slopes, with text and small marks kept as drawn."},
+        {"xBR", "xbr", "Smoother, rounder pixel-art upscaling; it rounds small text."},
+        {"Remacri", "remacri", "MMPX, plus the cockpit art from an AI-upscaled art pack in art\\remacri (see the README)."}}},
+    {"upscaler", "Upscaler", "off", 1, {
+        {"Off", "off", "No anti-aliasing: the world is drawn at the window's resolution."},
+        {"TAA", "taa", "The port's own temporal anti-aliasing and upscaler. Works on any GPU."},
+        {"FSR", "fsr", "AMD FSR: FSR 4 on Radeon RX 9000 cards, FSR 3.1 on other GPUs."},
+        {"DLSS", "dlss", "NVIDIA DLSS (GeForce RTX). Switching to or from DLSS needs a restart of the game."}}},
+    {"render_scale", "Render scale", "100", 3, {
+        {"100%", "100", "The world at the window's resolution: anti-aliasing only (with DLSS: DLAA)."},
+        {"67%", "67", "Drawn at 67% of the window's size and upscaled (DLSS: Quality)."},
+        {"58%", "58", "Drawn at 58% of the window's size and upscaled (DLSS: Balanced)."},
+        {"50%", "50", "Drawn at half the window's size and upscaled (DLSS: Performance)."}}},
+    {"frame_generation", "Frame generation", "off", 3, {
+        {"Off", "off", "Every frame shown is one the game drew."},
+        {"2x", "on", "NVIDIA DLSS Frame Generation (RTX 40/50): a generated frame between each pair, in flight."},
+        {"3x", "3x", "Two generated frames between each pair (RTX 50; 2x on RTX 40)."},
+        {"4x", "4x", "Three generated frames between each pair (RTX 50; 2x on RTX 40)."}}},
+};
+#define NOPT ((int)(sizeof opts / sizeof opts[0]))
+#define OPT_COL2 9                    /* the first option of the right-hand column */
+static const char *opt_group[NOPT] = {"Window and picture", 0, 0, 0, 0, 0, "Input", 0, 0, "Renderer (native renderer options)"};
+static char opt_val[NOPT][40];       /* as shown, and saved */
+static int opt_changed[NOPT], has_fsr, has_dlss, has_art;
+
+static int nchoices(int i) { int n = 0; while (n < 6 && opts[i].ch[n].label) n++; return n; }
+
+/* what a value means: on, 1 and auto are the same switch, as settings.c reads them */
+static void canon(const char *v, char *b, int n) {
+    if (!_stricmp(v, "1") || !_stricmp(v, "on") || !_stricmp(v, "auto") || !_stricmp(v, "2x") || !_stricmp(v, "yes"))
+        snprintf(b, n, "on");
+    else if (!_stricmp(v, "0") || !_stricmp(v, "off") || !_stricmp(v, "no")) snprintf(b, n, "off");
+    else {
+        int j = 0;
+        for (; *v && j < n - 1; v++) if (*v != ' ') b[j++] = (char)tolower((unsigned char)*v);
+        b[j] = 0;
+    }
+}
+static int same(const char *a, const char *b) {
+    char x[40], y[40];
+    canon(a, x, sizeof x); canon(b, y, sizeof y);
+    return !strcmp(x, y);
+}
+/* the choice shown as selected; nchoices(i) = a value written by hand */
+static int opt_choice(int i) {
+    for (int c = 0; c < nchoices(i); c++) if (same(opt_val[i], opts[i].ch[c].value)) return c;
+    return nchoices(i);
+}
+static int opt_is(const char *key, const char *v) {
+    for (int i = 0; i < NOPT; i++) if (!strcmp(opts[i].key, key)) return same(opt_val[i], v);
+    return 0;
+}
+static int opt_enabled(int i) {
+    int need = opts[i].need;
+    if (need >= 1 && !opt_is("renderer", "native")) return 0;
+    if (need == 2 && !opt_is("widescreen", "on")) return 0;
+    if (need == 3 && opt_is("upscaler", "off")) return 0;
+    return 1;
+}
+
+static char *trim_ws(char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    char *e = s + strlen(s);
+    while (e > s && (e[-1] == ' ' || e[-1] == '\t' || e[-1] == '\n' || e[-1] == '\r')) *--e = 0;
+    return s;
+}
+/* the option a line of tfx.ini sets, or -1; v gets its value */
+static int opt_line(const char *line, char *v, int n) {
+    char b[256];
+    snprintf(b, sizeof b, "%s", line);
+    char *p = trim_ws(b), *eq = strchr(p, '=');
+    if (*p == ';' || *p == '#' || !eq) return -1;
+    *eq = 0;
+    char *k = trim_ws(p);
+    for (int i = 0; i < NOPT; i++)
+        if (!_stricmp(k, opts[i].key)) { if (v) snprintf(v, n, "%s", trim_ws(eq + 1)); return i; }
+    return -1;
+}
+
+static int file_exists(const char *dir, const char *name) {
+    char p[700];
+    snprintf(p, sizeof p, "%s\\%s", dir, name);
+    return GetFileAttributesA(p) != INVALID_FILE_ATTRIBUTES;
+}
+
+static void load_settings_page(const char *dir) {
+    for (int i = 0; i < NOPT; i++) snprintf(opt_val[i], sizeof opt_val[0], "%s", opts[i].def);
+    char path[600], line[256], v[40];
+    snprintf(path, sizeof path, "%s\\tfx.ini", dir);
+    FILE *f = fopen(path, "r");
+    while (f && fgets(line, sizeof line, f)) {
+        int i = opt_line(line, v, sizeof v);
+        if (i >= 0) snprintf(opt_val[i], sizeof opt_val[0], "%s", v);      /* the last one counts, as in settings.c */
+    }
+    if (f) fclose(f);
+    memset(opt_changed, 0, sizeof opt_changed);
+    has_fsr = file_exists(dir, "amd_fidelityfx_loader_dx12.dll") && file_exists(dir, "amd_fidelityfx_upscaler_dx12.dll");
+    has_dlss = file_exists(dir, "sl.interposer.dll");
+    has_art = file_exists(dir, "art\\remacri\\pack.txt");
+}
+
+static int settings_dirty(void) {
+    for (int i = 0; i < NOPT; i++) if (opt_changed[i]) return 1;
+    return 0;
+}
+
+static void opt_select(int i, const char *v) {
+    if (!strcmp(opt_val[i], v)) return;
+    snprintf(opt_val[i], sizeof opt_val[0], "%s", v);
+    opt_changed[i] = 1;
+}
+
+/* the line under an option: what the selected choice does, or why it isn't used */
+static void opt_desc(int i, char *b, int n) {
+    int c = opt_choice(i);
+    if (!opt_enabled(i)) {
+        snprintf(b, n, "%s", opts[i].need == 2 && opt_is("renderer", "native") ? "Used when Widescreen is on." :
+                             opts[i].need == 3 && opt_is("renderer", "native") ? "Used with an upscaler." :
+                             "Used with the native renderer (Renderer: Native).");
+        return;
+    }
+    if (c == nchoices(i)) { snprintf(b, n, "%s=%s, as written in tfx.ini.", opts[i].key, opt_val[i]); return; }
+    const char *d = opts[i].ch[c].desc, *key = opts[i].key, *v = opts[i].ch[c].value, *extra = "";
+    if (!strcmp(key, "upscaler") && !strcmp(v, "fsr") && !has_fsr)
+        extra = "  AMD's DLLs aren't next to tfx.exe (build.bat -Upscalers), so TAA is used instead.";
+    else if (!strcmp(key, "upscaler") && !strcmp(v, "dlss") && !has_dlss)
+        extra = "  NVIDIA's DLLs aren't next to tfx.exe (build.bat -Upscalers), so TAA is used instead.";
+    else if (!strcmp(key, "ui_filter") && !strcmp(v, "remacri") && !has_art)
+        extra = "  There is no art pack next to tfx.exe, so it works as MMPX.";
+    else if (!strcmp(key, "frame_generation") && c > 0 && !has_dlss)
+        extra = "  NVIDIA's DLLs aren't next to tfx.exe, so it stays off.";
+    else if (!strcmp(key, "renderer") && c == 1 && opt_is("presenter", "sdl"))
+        extra = "  The presenter is SDL: set it to Direct3D 12.";
+    snprintf(b, n, "%s%s", d, extra);
+}
+
+/* layout, window units */
+enum { SP_Y = 60, SP_COL_W = 566, SP_HEAD = 30, SP_ROW = 64, SP_CH_X = 150 };
+static const int sp_col_x[2] = {16, 598};
+static void opt_pos(int i, int *x, int *y) {
+    int first = i >= OPT_COL2 ? OPT_COL2 : 0, yy = SP_Y;
+    for (int j = first; j <= i; j++) {
+        if (opt_group[j]) yy += SP_HEAD + (j != first ? 12 : 0);
+        if (j < i) yy += SP_ROW;
+    }
+    *x = sp_col_x[i >= OPT_COL2]; *y = yy;
+}
+static int choice_count(int i) { return nchoices(i) + (opt_choice(i) == nchoices(i)); }
+static void choice_box(int i, int c, int x, int *bx, int *bw) {
+    int n = choice_count(i), avail = SP_COL_W - SP_CH_X - 10;
+    *bw = (avail - (n - 1) * 4) / n;
+    if (*bw > 96) *bw = 96;
+    *bx = x + SP_CH_X + c * (*bw + 4);
+}
+
 /* ---- saving ---------------------------------------------------------------- */
 static int is_ctl_line(const char *p) {
     while (*p == ' ' || *p == '\t') p++;
@@ -172,21 +387,32 @@ static int is_ctl_line(const char *p) {
     return strchr(p, '=') != NULL;
 }
 
-static int save_ini(const char *dir) {
+/* ctl: the controls changed (their joy... lines are written again; else kept as they are) */
+static int save_ini(const char *dir, int ctl) {
     char path[600], tmp[600];
     snprintf(path, sizeof path, "%s\\tfx.ini", dir);
     snprintf(tmp, sizeof tmp, "%s\\tfx.ini.new", dir);
     FILE *in = fopen(path, "r"), *out = fopen(tmp, "w");
     if (!out) { if (in) fclose(in); return 0; }
-    /* the file without its control lines and the comments right above them */
+    /* the file without its control lines and the comments right above them;
+     * a changed setting's line gets its new value in place */
     static char pend[64][256];
-    int np = 0, blank = 0;
+    int np = 0, blank = 0, written[NOPT] = {0};
     char line[256];
     while (in && fgets(line, sizeof line, in)) {
         const char *p = line;
         while (*p == ' ' || *p == '\t') p++;
         if (*p == ';' || *p == '#') { if (np < 64) snprintf(pend[np++], sizeof pend[0], "%s", line); continue; }
-        if (is_ctl_line(p)) { np = 0; continue; }
+        if (ctl && is_ctl_line(p)) { np = 0; continue; }
+        int o = opt_line(p, NULL, 0);
+        if (o >= 0 && opt_changed[o]) {
+            if (written[o] || !opt_val[o][0]) {              /* a repeat, or back to the default: dropped */
+                if (np && strstr(pend[np - 1], "set in the settings window")) np--;   /* our heading goes with it; other comments stay */
+                continue;
+            }
+            snprintf(line, sizeof line, "%s=%s\n", opts[o].key, opt_val[o]);
+            written[o] = 1;
+        }
         for (int i = 0; i < np; i++) fputs(pend[i], out);
         np = 0;
         if (*p == '\n' || *p == '\r' || !*p) { if (blank) continue; blank = 1; fputs("\n", out); continue; }
@@ -196,6 +422,17 @@ static int save_ini(const char *dir) {
     }
     for (int i = 0; i < np; i++) fputs(pend[i], out);
     if (in) fclose(in);
+    int head = 0;                       /* changed settings the file had no line for */
+    for (int o = 0; o < NOPT; o++) {
+        if (!opt_changed[o] || written[o] || !opt_val[o][0]) continue;
+        if (!head) { fputs(blank ? "" : "\n", out); fputs("; set in the settings window (controls.bat)\n", out); head = 1; blank = 0; }
+        fprintf(out, "%s=%s\n", opts[o].key, opt_val[o]);
+    }
+    if (!ctl) {
+        fclose(out);
+        if (!MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING)) { remove(tmp); return 0; }
+        return 1;
+    }
     if (!blank) fputs("\n", out);
     fputs("; joystick controls, written by the controls window (controls.bat):\n"
           "; axes = roll, pitch, rudder, throttle as device.axis (0 none, - reversed)\n", out);
@@ -294,10 +531,62 @@ static int dev_rows(int d) {
 }
 static int dev_height(int d) { return 22 + 20 + dev_rows(d) * 25 + 12; }
 
+/* text in a box over several lines, from the top */
+static void text_wrap(int x, int y, int w, int h, const char *s, COLORREF c, HFONT f) {
+    RECT r = {PX(x), PX(y), PX(x + w), PX(y + h)};
+    SelectObject(mem, f);
+    SetTextColor(mem, c);
+    DrawTextA(mem, s, -1, &r, DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS);
+}
+
+static int page;                            /* 0 controls, 1 settings */
+enum { TAB_X = 16, TAB_Y = 6, TAB_W = 110, TAB_H = 26 };
+static int any_dirty(void) { return dirty || settings_dirty(); }
+
+static void draw_settings(void) {
+    char b[300];
+    for (int i = 0; i < NOPT; i++) {
+        int x, y;
+        opt_pos(i, &x, &y);
+        if (opt_group[i]) {                 /* the group's panel, down to its last option */
+            int j = i + 1;
+            while (j < NOPT && j != OPT_COL2 && !opt_group[j]) j++;
+            int x2, y2;
+            opt_pos(j - 1, &x2, &y2);
+            fill(x, y - SP_HEAD, SP_COL_W, y2 + SP_ROW - (y - SP_HEAD), C_PANEL);
+            text(x + 10, y - SP_HEAD + 4, SP_COL_W - 20, 24, opt_group[i], C_ACC, f_bold, 0);
+        }
+        int on = opt_enabled(i), cur = opt_choice(i);
+        text(x + 12, y, SP_CH_X - 14, 26, opts[i].label, on ? C_TEXT : C_DIM, f_norm, 0);
+        for (int c = 0; c < choice_count(i); c++) {
+            int bx, bw;
+            choice_box(i, c, x, &bx, &bw);
+            const char *l = c < nchoices(i) ? opts[i].ch[c].label : opt_val[i];
+            int hot = on && inside(ptr_x, ptr_y, bx, y + 1, bw, 24);
+            if (c == cur) fill(bx, y + 1, bw, 24, on ? C_ACC : 0x6e6258);
+            else fill(bx, y + 1, bw, 24, hot ? C_SEL : C_BTN);
+            text(bx, y + 1, bw, 24, l, c == cur && on ? 0x000000 : on ? C_TEXT : C_DIM, f_norm, 1);
+        }
+        opt_desc(i, b, sizeof b);
+        text_wrap(x + 12, y + 28, SP_COL_W - 24, 32, b, on ? C_DIM : C_LINE + 0x202020, f_small);
+    }
+}
+
 static void draw(HDC wdc, int pw, int ph) {
     fill(0, 0, WIN_W, WIN_H, C_BG);
     SetBkMode(mem, TRANSPARENT);
-    text(16, 10, 400, 26, "TFX controls", C_TEXT, f_bold, 0);
+    for (int t = 0; t < 2; t++) {
+        int x = TAB_X + t * (TAB_W + 6), hot = inside(ptr_x, ptr_y, x, TAB_Y, TAB_W, TAB_H);
+        fill(x, TAB_Y, TAB_W, TAB_H, t == page ? C_SEL : hot ? C_PANEL : C_BG);
+        if (t == page) fill(x, TAB_Y + TAB_H - 3, TAB_W, 3, C_ACC);
+        text(x, TAB_Y, TAB_W, TAB_H - 2, t ? "Settings" : "Controls", t == page ? C_TEXT : C_DIM, f_bold, 1);
+    }
+    if (page == 1) {
+        text(16, 34, 1100, 20, "Click a choice. Save writes the changed lines of tfx.ini; the game reads it when it starts.",
+             C_DIM, f_norm, 0);
+        draw_settings();
+        goto bar;
+    }
     text(16, 34, 900, 20, capture ? "Press the button or hat direction for the highlighted control.   Esc = cancel"
                          : cap_axis >= 0 ? "Move the axis as described below.   Esc = cancel"
                          : "Click a control to bind it.   Del = remove its buttons.   Pressing a button shows what it does.",
@@ -397,11 +686,11 @@ static void draw(HDC wdc, int pw, int ph) {
         y += h;
     }
 
-    /* the bottom bar */
+bar:    /* the bottom bar */
     fill(0, WIN_H - BAR_H, WIN_W, BAR_H, C_PANEL);
     text(16, WIN_H - BAR_H, 760, BAR_H, status, C_TEXT, f_norm, 0);
-    button(WIN_W - 396, WIN_H - 44, 120, 32, dirty ? "Save *" : "Save", 1);
-    button(WIN_W - 268, WIN_H - 44, 120, 32, "Default buttons", 1);
+    button(WIN_W - 396, WIN_H - 44, 120, 32, any_dirty() ? "Save *" : "Save", 1);
+    button(WIN_W - 268, WIN_H - 44, 120, 32, page ? "Default settings" : "Default buttons", 1);
     button(WIN_W - 140, WIN_H - 44, 120, 32, "Close", 1);
     BitBlt(wdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
 }
@@ -450,9 +739,59 @@ static void clear_row(int i) {
 }
 
 static void do_save(void) {
-    if (save_ini(ini_dir)) { dirty = 0; snprintf(status, sizeof status, "Saved to tfx.ini. The game uses it the next time it starts."); }
-    else snprintf(status, sizeof status, "Could not write tfx.ini.");
     close_asked = 0;
+    if (!any_dirty()) { snprintf(status, sizeof status, "Nothing has changed."); return; }
+    if (save_ini(ini_dir, dirty)) {
+        dirty = 0;
+        memset(opt_changed, 0, sizeof opt_changed);
+        snprintf(status, sizeof status, "Saved to tfx.ini. The game uses it the next time it starts.");
+    } else snprintf(status, sizeof status, "Could not write tfx.ini.");
+}
+
+static void set_page(int p) {
+    page = p; capture = 0; cap_axis = -1;
+    snprintf(status, sizeof status, "%s", p ? "The port's settings in tfx.ini. The game's own options are in tfxconfig.exe."
+                                            : "Click a control, then press the button or hat you want for it.");
+}
+
+/* the bottom bar's buttons, on either page */
+static int bar_click(int mx, int my) {
+    if (inside(mx, my, WIN_W - 396, WIN_H - 44, 120, 32)) { do_save(); return 1; }
+    if (inside(mx, my, WIN_W - 268, WIN_H - 44, 120, 32)) {
+        if (page) {
+            for (int i = 0; i < NOPT; i++) opt_select(i, opts[i].def);
+            snprintf(status, sizeof status, "Settings set to the defaults (not saved yet).");
+        } else {
+            for (int d = 0; d < joy_dev_count(); d++)
+                for (int c = 0; c < JOY_NCTL; c++) if (joy_ctl_exists(d, c)) set_val(d, c, joy_ctl_default(d, c));
+            build_rows();
+            dirty = 1; sel = -1;
+            snprintf(status, sizeof status, "Buttons set to the defaults (not saved yet).");
+        }
+        return 1;
+    }
+    if (inside(mx, my, WIN_W - 140, WIN_H - 44, 120, 32)) {
+        if (any_dirty() && !close_asked) { close_asked = 1; snprintf(status, sizeof status, "Changes are not saved. Click Close again to drop them, or Save."); }
+        else running = 0;
+        return 1;
+    }
+    return 0;
+}
+
+static void settings_click(int mx, int my) {
+    for (int i = 0; i < NOPT; i++) {
+        int x, y;
+        opt_pos(i, &x, &y);
+        if (!opt_enabled(i) || my < y + 1 || my >= y + 25) continue;
+        for (int c = 0; c < nchoices(i); c++) {
+            int bx, bw;
+            choice_box(i, c, x, &bx, &bw);
+            if (!inside(mx, my, bx, y + 1, bw, 24)) continue;
+            opt_select(i, opts[i].ch[c].value);
+            snprintf(status, sizeof status, "%s: %s%s", opts[i].label, opts[i].ch[c].label, opt_changed[i] ? "  (not saved yet)" : "");
+            return;
+        }
+    }
 }
 
 static int thr_d = -1, thr_a;                /* setting the throttle: the axis that moved, and how long it has been still */
@@ -471,7 +810,7 @@ static void start_axis(int k) {
 static void on_press(int d, int c) {
     char t[48];
     ctl_text(d, c, t, sizeof t);
-    if (cap_axis >= 0) return;
+    if (cap_axis >= 0 || page) return;
     if (capture && sel >= 0) {
         set_val(d, c, rows[sel].value);
         dirty = 1; capture = 0;
@@ -488,7 +827,11 @@ static void on_press(int d, int c) {
 }
 
 static void on_click(int mx, int my) {
+    for (int t = 0; t < 2; t++)
+        if (inside(mx, my, TAB_X + t * (TAB_W + 6), TAB_Y, TAB_W, TAB_H)) { close_asked = 0; set_page(t); return; }
+    if (bar_click(mx, my)) return;
     close_asked = 0;
+    if (page) { settings_click(mx, my); return; }
     if (inside(mx, my, LIST_X, LIST_Y, LIST_W, LIST_H)) {
         int i = (my - LIST_Y - 4 + scroll) / ROW_H;
         cap_axis = -1;
@@ -523,28 +866,19 @@ static void on_click(int mx, int my) {
         }
     }
     cap_axis = -1;
-    if (inside(mx, my, WIN_W - 396, WIN_H - 44, 120, 32)) do_save();
-    else if (inside(mx, my, WIN_W - 268, WIN_H - 44, 120, 32)) {
-        for (int d = 0; d < joy_dev_count(); d++)
-            for (int c = 0; c < JOY_NCTL; c++) if (joy_ctl_exists(d, c)) set_val(d, c, joy_ctl_default(d, c));
-        build_rows();
-        dirty = 1; sel = -1;
-        snprintf(status, sizeof status, "Buttons set to the defaults (not saved yet).");
-    } else if (inside(mx, my, WIN_W - 140, WIN_H - 44, 120, 32)) {
-        if (dirty && !close_asked) { close_asked = 1; snprintf(status, sizeof status, "Changes are not saved. Click Close again to drop them, or Save."); }
-        else running = 0;
-    }
 }
 
 static void on_key(const char *k) {
     if (!strcmp(k, "esc")) {
         if (capture || cap_axis >= 0) { capture = 0; cap_axis = -1; snprintf(status, sizeof status, "Cancelled."); }
-        else if (dirty && !close_asked) { close_asked = 1; snprintf(status, sizeof status, "Changes are not saved. Esc again to drop them, or Ctrl+S to save."); }
+        else if (any_dirty() && !close_asked) { close_asked = 1; snprintf(status, sizeof status, "Changes are not saved. Esc again to drop them, or Ctrl+S to save."); }
         else running = 0;
         return;
     }
     close_asked = 0;
     if (!strcmp(k, "save")) do_save();
+    else if (!strcmp(k, "tab")) set_page(!page);
+    else if (page) return;
     else if (!strcmp(k, "up") || !strcmp(k, "down")) {
         int step = k[0] == 'u' ? -1 : 1, i = sel < 0 ? (step > 0 ? -1 : nrows) : sel;
         do i += step; while (i >= 0 && i < nrows && rows[i].header);
@@ -601,13 +935,13 @@ static void poll_devices(void) {
         }
 }
 
-int joy_controls_window(const char *dir) {
+int joy_controls_window(const char *dir, int settings_page) {
     ini_dir = dir;
     SDL_SetMainReady();
     SDL_SetHint("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2");
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) rt_fatal("SDL_Init: %s", SDL_GetError());
-    SDL_Window *win = SDL_CreateWindow("TFX controls", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H,
+    SDL_Window *win = SDL_CreateWindow("TFX controls and settings", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H,
                                        SDL_WINDOW_HIDDEN | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!win) rt_fatal("SDL_CreateWindow: %s", SDL_GetError());
     SDL_SysWMinfo wm;
@@ -634,6 +968,8 @@ int joy_controls_window(const char *dir) {
 
     joy_open();
     load_model();
+    load_settings_page(dir);
+    if (settings_page) set_page(1);
     rt_log("controls window: %d device(s), scale %.2f", joy_dev_count(), S);
 
     char test[1024] = "", *tp = test;
@@ -651,6 +987,7 @@ int joy_controls_window(const char *dir) {
                 if (ev.button.button == SDL_BUTTON_LEFT) on_click((int)(ev.button.x / S), (int)(ev.button.y / S));
                 break;
             case SDL_MOUSEWHEEL: {
+                if (page) break;
                 int max = 8 + nrows * ROW_H - LIST_H;
                 scroll -= ev.wheel.y * ROW_H * 3;
                 if (scroll > max) scroll = max;
@@ -665,6 +1002,7 @@ int joy_controls_window(const char *dir) {
                 else if (k == SDLK_RETURN || k == SDLK_KP_ENTER) on_key("enter");
                 else if (k == SDLK_DELETE || k == SDLK_BACKSPACE) on_key("del");
                 else if (k == SDLK_s && (ev.key.keysym.mod & KMOD_CTRL)) on_key("save");
+                else if (k == SDLK_TAB) on_key("tab");
                 break;
             }
             }
