@@ -34,6 +34,27 @@ This is an unofficial fan project. It is not affiliated with or endorsed by the 
 | <img alt="Head tracking: looking back over the wing" src="https://github.com/user-attachments/assets/7e4334f5-9c3c-49a8-9854-2526d844cbac" /> | <img alt="The controls window binding a HOTAS" src="https://github.com/user-attachments/assets/f4bf94a6-f068-4b85-85b2-b75f6874adb9" /> |
 | *Head tracking: looking back over the wing* | *The controls window* |
 
+### Render options
+
+The same paused moment with different settings, at 1600x900 on a GeForce RTX 4070 Laptop GPU. `dev/play/render_shots.sh` takes these shots again on your own PC.
+
+| | |
+|---|---|
+| <img alt="The original 320x200 picture, scaled up to 4:3" src="https://github.com/user-attachments/assets/60ee583d-8c2b-4b70-8fa5-174df742f45b" /> | <img alt="The native renderer in a 16:9 window: the 3D world fills the sides" src="https://github.com/user-attachments/assets/4b509393-c4b8-4275-896b-300b2dcba5cb" /> |
+| *`renderer=game`: the original 320x200 picture* | *`renderer=native`, `widescreen=on`: the world fills the sides* |
+| <img alt="Widescreen with the cockpit panel continued at the sides" src="https://github.com/user-attachments/assets/47eeb3ad-2bee-496a-b596-5a193ea05a68" /> | |
+| *`widescreen_sides=cockpit`: the panel continues sideways* | |
+
+<img alt="The aircraft zoomed 2x with no upscaler, TAA, FSR and DLSS at 100% and at 50% render scale" src="https://github.com/user-attachments/assets/018678db-4ad8-44e3-8033-33e6dc44a6d0" />
+
+*Upscalers, zoomed 2x. Without one, the edges are jagged. At 100% (anti-aliasing only), TAA, FSR and DLSS all smooth them, and DLSS keeps the most detail. At 50% render scale, TAA turns soft, while FSR and DLSS stay close to their full-resolution pictures.*
+
+<img alt="Two MFDs and the radar zoomed 2x with each cockpit filter" src="https://github.com/user-attachments/assets/3953e3f8-d78b-4d86-a5b4-877b16254457" />
+
+*Cockpit filters (`ui_filter`), zoomed 2x. MMPX smooths slopes and keeps text as drawn. xBR is rounder and softens small letters. Remacri also redraws the static cockpit art from an AI-upscaled art pack.*
+
+Full-size shots: [native 4:3](https://github.com/user-attachments/assets/77d58421-7404-4f09-ac84-5c766e67e0da) · [MMPX](https://github.com/user-attachments/assets/c03828d3-48a6-442c-88b8-ea1f791ca4a1) · [xBR](https://github.com/user-attachments/assets/e7e37b78-af0f-4040-9c5c-8b28206d0b62) · [Remacri](https://github.com/user-attachments/assets/74c9a3cf-83a5-4df6-a7c6-8561e5db5cc1) · [no upscaler](https://github.com/user-attachments/assets/2c043077-22fe-47d9-9d9e-bf3a4164c55d) · [TAA](https://github.com/user-attachments/assets/9c6c2f6a-62dd-42ae-8c78-5197a537d980) · [FSR](https://github.com/user-attachments/assets/1925f4b9-94f0-4704-bbeb-685231c5357b) · [DLSS](https://github.com/user-attachments/assets/9171929e-3bba-4e8e-b99f-3b888f50b669) · [TAA 50%](https://github.com/user-attachments/assets/0af767c8-198a-441f-86d3-3111923040fc) · [FSR 50%](https://github.com/user-attachments/assets/edabf609-47fe-4295-90d1-ffe4ae9b0edf) · [DLSS 50%](https://github.com/user-attachments/assets/19b6f23f-8e62-4b79-a818-9506b75ab3e9).
+
 ## What you need
 
 - **Your own copy of TFX**: the CD-ROM release, installed and patched to v2.01 (`TFX.DAT` is 1,032,503 bytes), with its CD image:
